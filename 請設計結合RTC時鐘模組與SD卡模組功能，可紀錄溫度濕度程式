@@ -1,3 +1,145 @@
 請運用DHT22及RTC時鐘模組與SD卡模組，可將時間、溫度、濕度資料紀錄在SD卡檔案內。
 資料格式：日期，時分秒，溫度，濕度。
 完成期限：108年11月17日
+/*
+  SD card read/write
+
+ This example shows how to read and write data to and from an SD card file
+ The circuit:
+ * SD card attached to SPI bus as follows:
+ ** MOSI - pin 11
+ ** MISO - pin 12
+ ** CLK - pin 13
+ ** CS - pin 4 (for MKRZero SD: SDCARD_SS_PIN)
+
+ created   Nov 2010
+ by David A. Mellis
+ modified 9 Apr 2012
+ by Tom Igoe
+
+ This example code is in the public domain.
+
+ */
+
+
+#include <SPI.h>
+#include <SD.h>
+#include "DHT.h"        // 匯入DHT函式庫
+#define DHTPIN 2        // 定義DHT函式庫中，所使用的訊號來源
+#define DHTTYPE DHT22   // 定義DHT函式庫中，所使用的感測器
+DHT dht(DHTPIN, DHTTYPE);
+
+File myF;
+int i=0;
+void setup() {
+  // Open serial communications and wait for port to open:
+  Serial.begin(9600);
+  while (!Serial) {
+    ; // wait for serial port to connect. Needed for native USB port only
+  }
+  Serial.print("Initializing SD card...");
+  dht.begin();
+}
+
+void loop() {
+  int dhtT = dht.readTemperature();    //設定浮點變數dhtT，讀取溫度
+  int dhtH = dht.readHumidity();       //設定浮點變數dhtH，讀取濕度
+  if (!SD.begin(4)) {
+    Serial.println("initialization failed!");
+    while (1);
+  }
+  Serial.println("initialization done.");
+
+  // open the file. note that only one file can be open at a time,
+  // so you have to close this one before opening another.
+  myF = SD.open("clock.txt", FILE_WRITE);
+
+  // if the file opened okay, write to it:
+  if (myF) {
+    Serial.print("Writing to clock.txt...");
+    myF.print(dhtT);
+    myF.print(",");
+    myF.println("clock");
+    i++;
+    delay(10000);
+    // close the file:
+    myF.flush();
+    Serial.println("done.");
+  } else {
+    // if the file didn't open, print an error:
+    Serial.println("error opening clock.txt");
+  }
+}
+
+上面已經是DHT22與SD的程式
+再把下面的RTC時鐘模組攪拌一起就OK
+
+#include <stdio.h>
+#include <DS1302.h>
+
+namespace {
+
+const int kCePin   = 5;  // Chip Enable
+const int kIoPin   = 6;  // Input/Output
+const int kSclkPin = 7;  // Serial Clock
+
+// Create a DS1302 object.
+DS1302 rtc(kCePin, kIoPin, kSclkPin);
+
+String dayAsString(const Time::Day day) {
+  switch (day) {
+    case Time::kSunday: return "Sunday";
+    case Time::kMonday: return "Monday";
+    case Time::kTuesday: return "Tuesday";
+    case Time::kWednesday: return "Wednesday";
+    case Time::kThursday: return "Thursday";
+    case Time::kFriday: return "Friday";
+    case Time::kSaturday: return "Saturday";
+  }
+  return "(unknown day)";
+}
+
+void printTime() {
+  // Get the current time and date from the chip.
+  Time t = rtc.time();//此行為重要的時間變數宣告及設定，可嘗試複製移到其他位置
+
+  // Name the day of the week.
+  const String day = dayAsString(t.day);
+
+  // Format the time and date and insert into the temporary buffer.
+  char buf[50];
+  snprintf(buf, sizeof(buf), "%s %04d-%02d-%02d %02d:%02d:%02d",
+           day.c_str(),
+           t.yr, t.mon, t.date,
+           t.hr, t.min, t.sec);//請留意此段t.hr等用法
+
+  // Print the formatted string to serial so we can see the time.
+  Serial.println(buf);
+}
+
+}  // namespace
+
+void setup() {
+  Serial.begin(9600);
+
+  // Initialize a new chip by turning off write protection and clearing the
+  // clock halt flag. These methods needn't always be called. See the DS1302
+  // datasheet for details.
+  rtc.writeProtect(false);
+  rtc.halt(false);
+
+  // Make a new time object to set the date and time.
+  // Sunday, September 22, 2013 at 01:38:50.
+  Time t(2020, 1, 5, 12, 00, 00, Time::kSunday);   
+  //上行為一開始設定用，設定好後可加//不用再執行
+
+  // Set the time and date on the chip.
+  rtc.time(t); //此行為一開始設定用，設定好後可加//不用再執行 
+}
+
+// Loop and print the time every second.
+void loop() {
+  printTime();
+  delay(100);
+}
+
