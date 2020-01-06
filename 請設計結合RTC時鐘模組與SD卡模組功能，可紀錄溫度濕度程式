@@ -52,14 +52,14 @@ void loop() {
 
   // open the file. note that only one file can be open at a time,
   // so you have to close this one before opening another.
-  myF = SD.open("clock.txt", FILE_WRITE);
+  myF = SD.open("Cash.txt", FILE_WRITE);
 
   // if the file opened okay, write to it:
   if (myF) {
-    Serial.print("Writing to clock.txt...");
+    Serial.print("Writing to Cash.txt...");
     myF.print(dhtT);
     myF.print(",");
-    myF.println("clock");
+    myF.println("Cash");
     i++;
     delay(10000);
     // close the file:
@@ -67,7 +67,7 @@ void loop() {
     Serial.println("done.");
   } else {
     // if the file didn't open, print an error:
-    Serial.println("error opening clock.txt");
+    Serial.println("error opening Cash.txt");
   }
 }
 
